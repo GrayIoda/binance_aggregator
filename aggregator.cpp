@@ -1,5 +1,4 @@
 #include "aggregator.h"
-#include "aggregator.h"
 #include "fixedpoint.h"
 #include "settings.h"
 #include <cstdint>
