@@ -49,7 +49,7 @@ TEST(Aggregator, Aggregation)
 	aggr.addTrade("ETHUSDT", 100'000'000, 200'000'000, 1'000'230, s);
 	aggr.addTrade("BTCUSDT", 400'000'000, 100'000'000, 1'000'430, s);
 	aggr.addTrade("ETHUSDT", 100'000'000, 100'000'000, 1'000'830, s);
-	const auto &window = aggr.queue.back();
+	const auto &window = aggr.queue.front();
 	const auto& stream1 = window.streams[s.getIndexFromSymbol("BTCUSDT")];
 	const auto& stream2 = window.streams[s.getIndexFromSymbol("ETHUSDT")];
 	EXPECT_TRUE(stream1.trades == 3 && stream1.min_price == 100'000'000 && stream1.max_price == 400'000'000 && stream1.volume == 800'000'000);

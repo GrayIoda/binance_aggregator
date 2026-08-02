@@ -42,7 +42,7 @@ public:
 		void dump(std::ofstream& file, const Settings &settings) const;
 	};
 
-	// first windows in deque are newest
+	// windows in the time order
 	// continuous sequence covers whole range [min_valid_timestamp, max_valid_timestamp[
 	std::deque<Window> queue;
 	
@@ -56,8 +56,8 @@ public:
 	// main file for dump
 	std::ofstream file;
 
-	// insert specified window to the front of queue
-	void insertWindow(int64_t window_start_ms, const Settings& settings);
+	// append specified window
+	void appendWindow(int64_t window_start_ms, const Settings& settings);
 
 public:
 

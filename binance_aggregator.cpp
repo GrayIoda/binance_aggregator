@@ -79,6 +79,8 @@ int main(int argc, char **argv)
                         int64_t cur_time = Settings::getEpochTime();
                         if (cur_time >= dump_time + settings.flush_interval_ms)
                         {
+                            // TODO: here should use server time (timestamp from trade) 
+                            // if is it not too far from wall time
                             aggr.moveInTime(cur_time, settings);
                             dump_time = cur_time;
                         }
