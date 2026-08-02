@@ -1,0 +1,12 @@
+[requires]
+nlohmann_json/3.11.3
+spdlog/1.13.0
+gtest/1.14.0
+ixwebsocket/11.4.5
+
+[generators]
+CMakeDeps
+CMakeToolchain
+
+[layout]
+cmake_layout

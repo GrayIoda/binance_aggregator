@@ -1,0 +1,9 @@
+services:
+  cpp_dev:
+    build: .
+    container_name: wsl_docker
+    ports:
+      - "2222:22"
+    volumes:
+      - .:/workspace
+    working_dir: /workspace
