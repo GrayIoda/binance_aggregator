@@ -194,3 +194,5 @@ Task required tests are in tests/test_aggregator.cpp and tests/test_jsonparser.c
 - Because of requirements there is possible late packet issue if window border
   hits flush time and some packets with small delay are arrived immediately.
   This behavior may be overriden with safety_gap_ms setting.
+- If wall time is not sync enough from server time, then app lose more trades.
+  This behavior may be fixed with use trade time instead of wall time to define 'past'.

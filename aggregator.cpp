@@ -1,4 +1,5 @@
 #include "aggregator.h"
+#include "aggregator.h"
 #include "fixedpoint.h"
 #include "settings.h"
 #include <cstdint>
@@ -56,7 +57,7 @@ void Aggregator::Window::dump(std::ofstream& file, const Settings& settings) con
 			if (!time_is_written)
 			{
 				time_is_written = true;
-				file << "timestamp=" << timeToISOString(window_start_ms, buffer, sizeof(buffer)) << std::endl;
+				file << "timestamp=" << timeToISOString(window_start_ms, buffer, sizeof(buffer)) << "\n";
 			}
 
 			file << "symbol=" << settings.getSymbolByIndex(index) 
@@ -67,9 +68,11 @@ void Aggregator::Window::dump(std::ofstream& file, const Settings& settings) con
 			file << " min=" << buffer;
 			fixedpoint_to_string(stream.max_price, settings.fixed_precision, buffer, sizeof(buffer));
 			file << " max=" << buffer;
-			file << std::endl;
+			file << "\n";
 		}
 	}
+	if (settings.verbose)
+		spdlog::info("Flush window: {}..{}", window_start_ms, window_start_ms + settings.window_ms);
 }
 
 Aggregator::Aggregator(const Settings& settings)
@@ -80,12 +83,14 @@ Aggregator::Aggregator(const Settings& settings)
 	// TODO: "disk-full handling"
 }
 
-void Aggregator::insertWindow(int64_t window_start_ms, const Settings& settings)
+void Aggregator::appendWindow(int64_t window_start_ms, const Settings& settings)
 {
-	queue.push_front(Window());
-	auto& window = queue.front();
+	queue.push_back(Window());
+	auto& window = queue.back();
 	window.streams = std::make_unique<Streams[]>(settings.streams_count);
 	window.window_start_ms = window_start_ms;
+	if (settings.verbose)
+		spdlog::info("Append window: {}..{}", window_start_ms, window_start_ms + settings.window_ms);
 }
 
 void Aggregator::addTrade(const std::string_view &symbol, int64_t price, int64_t quantity, int64_t timestamp, const Settings& settings)
@@ -116,25 +121,20 @@ void Aggregator::addTrade(const std::string_view &symbol, int64_t price, int64_t
 		return;
 	}
 
-	int64_t window_start_ms = (timestamp / settings.window_ms) * settings.window_ms;
-
-	// first items in deque are newest and has best chance
-	for (auto& window : queue)
-	{
-		if (window.window_start_ms == window_start_ms)
-		{
-			window.streams[sym_index].addTrade(price, quantity);
-			break;
-		}
-	}
+	int64_t index = (timestamp - min_valid_timestamp) / settings.window_ms;
+	if (settings.verbose)
+		spdlog::info("Add trade s={} p={} q={} T={} to window {}..{} stream {}", 
+			symbol, price, quantity, timestamp, 
+			queue[index].window_start_ms, queue[index].window_start_ms + settings.window_ms, sym_index);
+	queue[index].streams[sym_index].addTrade(price, quantity);
 }
 
 void Aggregator::flushAll(const Settings& settings)
 {
 	while (!queue.empty())
 	{
-		queue.back().dump(file, settings);
-		queue.pop_back();
+		queue.front().dump(file, settings);
+		queue.pop_front();
 	}
 	file.flush();
 }
@@ -163,18 +163,18 @@ void Aggregator::moveInTime(int64_t now, const Settings& settings)
 	// dump and remove too old
 	while(!queue.empty())
 	{
-		auto& window = queue.back();
+		auto& window = queue.front();
 		if (window.window_start_ms >= min_valid_timestamp)
 			break;
 		window.dump(file, settings);
-		queue.pop_back();
+		queue.pop_front();
 	}
 
 	// place new
-	for (int64_t window_start_ms = queue.empty() ? min_valid_timestamp : queue.front().window_start_ms + window_ms; 
+	for (int64_t window_start_ms = queue.empty() ? min_valid_timestamp : queue.back().window_start_ms + window_ms; 
 		 window_start_ms < max_valid_timestamp ; window_start_ms += window_ms)
 	{
-		insertWindow(window_start_ms, settings);
+		appendWindow(window_start_ms, settings);
 	}
 
 	// invalid trades
