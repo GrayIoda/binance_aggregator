@@ -1,14 +1,20 @@
 services:
   binance_aggregator:
     build: .
-    
-    # image: ghcr.io/GrayIoda/binance_aggregator_env:latest
-
+    image: binance_aggregator:latest
     container_name: binance_aggregator_env
     stdin_open: true
     tty: true
-    
     volumes:
       - .:/app
       - /app/build
     working_dir: /app
+    
+    command: >
+      bash -c "
+        conan install . --build=missing -s build_type=Release &&
+        cmake --preset conan-release &&
+        cmake --build --preset conan-release &&
+        echo '=== Build Complete! Executable ready at ./build/Release/binance_aggregator ===' &&
+        tail -f /dev/null
+      "

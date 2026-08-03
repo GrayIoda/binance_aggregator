@@ -106,25 +106,29 @@ handle SIGINT nostop noprint pass
 - To run tests, use main menu to open View->Test Explorer and press double green icon ">>"
 - Also you can change build/Debug/settings.ini or build/Release/settings.ini
 
-## Build for local Docker Desktop (for WSL2)
+## Build for local Docker
 
-- Install and run Docker Desktop: https://www.docker.com/products/docker-desktop/
-- Set up Docker Desktop: Settings/Resources/WSL Integration, turn on Ubuntu
-- In WSL2 console in Ubuntu add yourself to the docker group:
+- Installation for Windows with WSL: 
+https://www.docker.com/products/docker-desktop/
+  Do not forget turn on Settings/Resources/WSL Integration for Ubuntu
+- Installation for Linux: 
+sudo apt install -y docker.io docker-compose-v2
+- Add yourself to the docker group:
 sudo usermod -aG docker $USER
-- Restart WSL2 console
 - Create some folder and download sources, for example:
 cd ~
 mkdir binance_aggregator
 cd binance_aggregator
 git clone https://github.com/GrayIoda/binance_aggregator.git .
-- Build docker image
-docker build -t binance_aggregator .
-- Run image
-docker compose run --rm binance_aggregator
-- Run steps for Linux case above from "Generate by conan..." step
-- Exit the docker console:
-exit
+- Run docker:
+docker compose up --build
+- Run second docker console:
+docker exec -it binance_aggregator_env bash
+- In the second console make experiments like run app, tests, view logs, modify ini:
+build/Release/binance_aggregator
+build/Release/unit_tests
+cat aggregator.log
+nano settings.ini
 
 # Architecture Overview
 
