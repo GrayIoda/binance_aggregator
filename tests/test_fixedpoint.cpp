@@ -28,23 +28,22 @@ TEST(StringToFixedPointTest, OverflowThrows)
 
 TEST(FixedPointToStringTest, ValidConversion)
 {
-    char buf[100];
-    fixedpoint_to_string(0, 8, buf, 11);  EXPECT_STREQ(buf, "0.00000000");
-    fixedpoint_to_string(1, 8, buf, 11);  EXPECT_STREQ(buf, "0.00000001");
-    fixedpoint_to_string(-1, 8, buf, 12);  EXPECT_STREQ(buf, "-0.00000001");
-    fixedpoint_to_string(-123456789, 8, buf, 12);  EXPECT_STREQ(buf, "-1.23456789");
-    fixedpoint_to_string(10123456789, 8, buf, 13);  EXPECT_STREQ(buf, "101.23456789");
-    fixedpoint_to_string(10000000000, 8, buf, 13);  EXPECT_STREQ(buf, "100.00000000");
+    { char buf[100] = {0}; fixedpoint_to_string(0, 8, buf, 11);  EXPECT_STREQ(buf, "0.00000000"); }
+    { char buf[100] = {0}; fixedpoint_to_string(1, 8, buf, 11);  EXPECT_STREQ(buf, "0.00000001"); }
+    { char buf[100] = {0}; fixedpoint_to_string(-1, 8, buf, 12);  EXPECT_STREQ(buf, "-0.00000001"); }
+    { char buf[100] = {0}; fixedpoint_to_string(-123456789, 8, buf, 12);  EXPECT_STREQ(buf, "-1.23456789"); }
+    { char buf[100] = {0}; fixedpoint_to_string(10123456789, 8, buf, 13);  EXPECT_STREQ(buf, "101.23456789"); }
+    { char buf[100] = {0}; fixedpoint_to_string(10000000000, 8, buf, 13);  EXPECT_STREQ(buf, "100.00000000"); }
+    { char buf[100] = {0}; fixedpoint_to_string(1000, 8, buf, 11);  EXPECT_STREQ(buf, "0.00001000"); }
 }
 
 TEST(FixedPointToStringTest, OverflowThrows)
 {
-    char buf[100];
-    EXPECT_THROW(fixedpoint_to_string(0, 8, buf, 10), std::out_of_range);
-    EXPECT_THROW(fixedpoint_to_string(1, 8, buf, 10), std::out_of_range);
-    EXPECT_THROW(fixedpoint_to_string(-1, 8, buf, 11), std::out_of_range);
-    EXPECT_THROW(fixedpoint_to_string(-123456789, 8, buf, 11), std::out_of_range);
-    EXPECT_THROW(fixedpoint_to_string(10123456789, 8, buf, 12), std::out_of_range);
-    EXPECT_THROW(fixedpoint_to_string(10000000000, 8, buf, 12), std::out_of_range);
-    EXPECT_THROW(fixedpoint_to_string(-1, 8, buf, 0), std::out_of_range);
+    { char buf[100] = {0}; EXPECT_THROW(fixedpoint_to_string(0, 8, buf, 10), std::out_of_range); }
+    { char buf[100] = {0}; EXPECT_THROW(fixedpoint_to_string(1, 8, buf, 10), std::out_of_range); }
+    { char buf[100] = {0}; EXPECT_THROW(fixedpoint_to_string(-1, 8, buf, 11), std::out_of_range); }
+    { char buf[100] = {0}; EXPECT_THROW(fixedpoint_to_string(-123456789, 8, buf, 11), std::out_of_range); }
+    { char buf[100] = {0}; EXPECT_THROW(fixedpoint_to_string(10123456789, 8, buf, 12), std::out_of_range); }
+    { char buf[100] = {0}; EXPECT_THROW(fixedpoint_to_string(10000000000, 8, buf, 12), std::out_of_range); }
+    { char buf[100] = {0}; EXPECT_THROW(fixedpoint_to_string(-1, 8, buf, 0), std::out_of_range); }
 }

@@ -250,5 +250,8 @@ void Aggregator::finalFlush(const Settings& settings)
 		queue.pop_front();
 	}
 	file.flush();
+	max_server_time_of_trade = 0;
+	min_valid_timestamp = 0;
+	max_valid_timestamp = 0;
 }
 
