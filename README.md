@@ -23,25 +23,28 @@ conan --version
   (check that the version is 2.x)
 conan profile detect
   (check that conan detected compiler.cppstd=gnu17 or later)
-- Place sources in some folder, for example:
-  /mnt/c/linux/binance_aggregator
-- Run conan:
+- Create some folder and download sources, for example:
+cd ~
+mkdir binance_aggregator
+cd binance_aggregator
+git clone https://github.com/GrayIoda/binance_aggregator.git .
+- Generate by conan cmake files for debug or release:
 conan install . --build=missing -s build_type=Debug
   or
 conan install . --build=missing -s build_type=Release
-  (this must download and build all external libraries in build/Debug and build/Release folders)
+  This must download and build all external libraries and generate cmake scripts build/Debug or build/Release folder
 - Run cmake configuration:
-cmake --preset conan-release
- or
 cmake --preset conan-debug
+ or
+cmake --preset conan-release
 - Run build:
-cmake --build build/Release
- or
 cmake --build build/Debug
-- Run application (from project folder)
-build/Release/binance_aggregator
  or
+cmake --build build/Release
+- Run application (from project folder)
 build/Debug/binance_aggregator
+ or
+build/Release/binance_aggregator
 - Wait about 10-20 secs
 - Stop it with ^C
 - You can look at the generated log:
@@ -49,9 +52,10 @@ cat aggregator.log
 - Or look at the larger sample log:
 cat aggregator_log_sample.txt
 - Run tests:
-build/Release/unit_tests
- or
 build/Debug/unit_tests
+ or
+build/Release/unit_tests
+- Also you can change settings.ini
 
 ## Build for Visual Studio Community 2022 and WSL2
 
@@ -77,7 +81,7 @@ git clone https://github.com/GrayIoda/binance_aggregator.git .
 ./studio_debug
   or
 ./studio_release
-  This must download and build all external libraries in build/Debug and build/Release folders
+  This must download and build all external libraries and generate cmake scripts build/Debug or build/Release folder
 - For correct processing ^C by GDB add file ~/.gdbinit with such line:
 handle SIGINT nostop noprint pass
 - In Windows 
@@ -100,6 +104,7 @@ handle SIGINT nostop noprint pass
 - Run application
 - To stop it, press ^C in Remote Console
 - To run tests, use main menu to open View->Test Explorer and press double green icon ">>"
+- Also you can change build/Debug/settings.ini or build/Release/settings.ini
 
 ## Build for Docker Desktop (for WSL2)
 

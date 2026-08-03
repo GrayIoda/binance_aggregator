@@ -8,7 +8,7 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 find_package(nlohmann_json REQUIRED)
 find_package(spdlog REQUIRED)
-find_package(gtest REQUIRED)
+find_package(GTest REQUIRED)
 find_package(ixwebsocket REQUIRED)
 
 enable_testing()
