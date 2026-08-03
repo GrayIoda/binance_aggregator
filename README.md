@@ -13,25 +13,25 @@
 
 ## Build for Linux (WSL2)
 
-- Install applications from apt:
+- Install applications from apt:  
 sudo apt install -y build-essential cmake gdb gdbserver python3-pip ninja rsync openssh-server
-- Install conan from pip:
+- Install conan from pip:  
 pip install conan --break-system-packages
-- Setup conan:
-echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc
-conan --version
-  (check that the version is 2.x)
-conan profile detect
-  (check that conan detected compiler.cppstd=gnu17 or later)
-- Create some folder and download sources, for example:
-cd ~
-mkdir binance_aggregator
-cd binance_aggregator
-git clone https://github.com/GrayIoda/binance_aggregator.git .
-- Generate by conan cmake files for debug or release:
-conan install . --build=missing -s build_type=Debug
-  or
-conan install . --build=missing -s build_type=Release
+- Setup conan:  
+echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc  
+conan --version  
+  (check that the version is 2.x)  
+conan profile detect  
+  (check that conan detected compiler.cppstd=gnu17 or later)  
+- Create some folder and download sources, for example:  
+cd ~  
+mkdir binance_aggregator  
+cd binance_aggregator  
+git clone https://github.com/GrayIoda/binance_aggregator.git .  
+- Generate by conan cmake files for debug or release:  
+conan install . --build=missing -s build_type=Debug  
+  or  
+conan install . --build=missing -s build_type=Release  
   This must download and build all external libraries and generate cmake scripts build/Debug or build/Release folder
 - Run cmake configuration:
 cmake --preset conan-debug
