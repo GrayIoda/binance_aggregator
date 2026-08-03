@@ -33,11 +33,11 @@ conan install . --build=missing -s build_type=Debug
   or  
 conan install . --build=missing -s build_type=Release  
   This must download and build all external libraries and generate cmake scripts build/Debug or build/Release folder
-- Run cmake configuration:
+- Run cmake configuration:  
 cmake --preset conan-debug  
  or  
 cmake --preset conan-release  
-- Run build:
+- Run build:  
 cmake --build build/Debug  
  or  
 cmake --build build/Release  
@@ -75,7 +75,7 @@ mkdir binance_aggregator
 cd binance_aggregator  
 git clone https://github.com/GrayIoda/binance_aggregator.git .  
   It will be visible in the Windows as C:\binance_aggregator  
-  DO NOT place project files on non-Windows disk (including user home)  
+  **DO NOT place project files on non-Windows disk (including user home).**  
   This causes Visual Studio to freeze while trying to lock files in the .vs folder  
 - Generate by conan cmake files for debug or release:  
 ./studio_debug  
@@ -84,7 +84,7 @@ git clone https://github.com/GrayIoda/binance_aggregator.git .
   This must download and build all external libraries and generate cmake scripts build/Debug or build/Release folder  
 - For correct processing ^C by GDB add file ~/.gdbinit with such line:  
 handle SIGINT nostop noprint pass  
-- In Windows   
+- Go to Windows   
 - Do not forget to install the package   
   "Linux / macOs / embedded development"  
   for Visual Studio Community 2022
@@ -110,7 +110,7 @@ handle SIGINT nostop noprint pass
 
 - Installation for Windows with WSL:  
 https://www.docker.com/products/docker-desktop/  
-  Do not forget turn on Settings/Resources/WSL Integration for Ubuntu
+  Do not forget to turn on Settings/Resources/WSL Integration for Ubuntu
 - Installation for Linux:  
 sudo apt install -y docker.io docker-compose-v2
 - Add yourself to the docker group:  
