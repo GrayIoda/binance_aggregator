@@ -156,12 +156,12 @@ and stream names in lower case
 By default binance_aggregator uses settings.ini in current folder.
 To use different config file specify it as single argument of binance_aggregator.
 
-Possible keys (and default values):
-- According the task:
+Possible keys (and default values)  
+According the task:  
 - flush_interval_ms=5000
 - window_ms=1000
 - output_file=aggregator.log
-- Additional for debug/experiments
+Additional for debug/experiments:  
 - verbose_level=0 (may be 0..2)
 - safety_gap_ms=0 (if not 0 then add gap to avoid late packet problem)
 
