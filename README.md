@@ -74,6 +74,8 @@ This causes Visual Studio to freeze while trying to lock files in the .vs folder
 - Go to binance_aggregator folder, run:
 ./conan_install
   (this must download and build all external libraries in build/Debug and build/Release folders)
+- For correct processing ^C by GDB add file ~/.gdbinit with such line:
+handle SIGINT nostop noprint pass
 - In Windows 
 - Do not forget to install the package 
   "Linux / macOs / embedded development"
@@ -164,11 +166,20 @@ Possible keys (and default values):
 
 ## Threading model and data flow
 
-The app implicitly uses multiple threads but does not require mutexes.
-Main thread is main() function which inits and holds all data, runs IXWebSocket and waits for ^C.
-IXWebSocket uses callback mechanism, but all callback for the socket run from the same thread, 
-so mutexes are not required. When socket is closed, only the main thread works with application 
-data to flush it.
+The app implicitly uses threads.
+Main thread is main() function which inits and holds all data, runs IXWebSocket, makes flushing and waits for ^C.
+IXWebSocket uses callback mechanism, all callbacks for the socket run from the same second thread.
+Flushing works by taking a short lock to move some windows to temporary queue and flush to disk without lock.
+When the socket is closed, only the main thread works to flush the rest of the data.
+
+Simpler implementation can use main thread to wait ^C only, flush data in the callbacks and avoid mutexes.
+But in this case requirement to flush data every specified interval will not be met if the exchange has a long pause in trading. 
+Also requirement to flush windows which are "in past" does not specify whether "past" means wall time or server time.
+For better reliability this strategy is used:
+- In normal case think about "past" in server terms. Treat server time of latest packet (among all symbols) as "now". 
+  Therefore, do not flush the latest window containing that last packet.
+- If wall time after last trade exceeds 2*flush interval, treat this situation as pause on the server.
+  So flush ALL windows and reset latest packet time.
 
 binance_aggregator.cpp - main thread, networking and Linux signals are here
 Data flow uses combined streams. 
@@ -186,13 +197,13 @@ Task required tests are in tests/test_aggregator.cpp and tests/test_jsonparser.c
 
 # Known limitations and TODO-s
 
-- No reconnections, but IXWebSocket allows enabling it via a single option.
-- No micro-optimization as requested, probably the JSON parser is probably the biggest bottleneck, 
+- No reconnections, but IXWebSocket allows enabling it via a single line.
+- No micro-optimization as requested, probably the JSON parser is the biggest bottleneck, 
   it may be simplified, because full functional parser is not required.
-- settings.ini may become more standard with JSON version and use more checks.
-- No disk-full handling — explicitly out of scope per the task
-- Because of requirements there is possible late packet issue if window border
-  hits flush time and some packets with small delay are arrived immediately.
-  This behavior may be overriden with safety_gap_ms setting.
-- If wall time is not sync enough from server time, then app lose more trades.
-  This behavior may be fixed with use trade time instead of wall time to define 'past'.
+- settings.ini may look more standard if rewritten in JSON. Also use more checks.
+- No disk-full handling — explicitly out of scope per the task.
+- Because of the watermark strategy above, a trade whose window border coincides almost 
+  exactly with the current watermark, and which arrives with even a small delay, can still 
+  be dropped as late. This can be mitigated with the safety_gap_ms setting.
+- If a packet is delayed on the network for a long time before arriving, the aggregator 
+  will drop it as late (its window will already have been flushed by then).

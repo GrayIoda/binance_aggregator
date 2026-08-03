@@ -12,10 +12,15 @@
 
 class Settings
 {
+protected:
+
 	// trade symbols
 	// after loading - in lower case (to form URL)
 	// later - in upper case (for search)
 	std::vector<std::string> streams;
+
+	int64_t test_time = 0;
+
 public:
 
 	// find symbol, return index [0, streams_count[ among streams or -1 if not found
@@ -33,23 +38,23 @@ public:
 	// convert names to uppercase
 	void useUpperNames();
 
-	// just Epoch time, ms
-	static int64_t getEpochTime();
+	// steady Epoch time, ms
+	int64_t getWallTime() const;
 
 	// public shortcut for streams array size
 	size_t streams_count = 0;
 
 	// interval to flush data
-	int flush_interval_ms = 1000;
+	int flush_interval_ms = 5000;
 
 	// aggregation time
-	int window_ms = 500;
+	int window_ms = 1000;
 
 	// safety time
 	int safety_gap_ms = 0;
 
 	// verbose logging
-	bool verbose = false;
+	int verbose_level = 0;
 
 	// output file path
 	std::filesystem::path output_file= "aggregator.log";

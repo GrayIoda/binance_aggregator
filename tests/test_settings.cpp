@@ -7,8 +7,8 @@ TEST(Settings, Load)
 {
 	Settings s;
 	s.load(fs::path("fixed_settings_for_test.ini"));
-	EXPECT_EQ(s.flush_interval_ms, 5000);
-	EXPECT_EQ(s.window_ms, 1000);
+	EXPECT_EQ(s.flush_interval_ms, 500);
+	EXPECT_EQ(s.window_ms, 100);
 	EXPECT_EQ(s.streams_count, 3);
 	EXPECT_EQ(s.getSymbolByIndex(0), "bnbusdt");
 	EXPECT_EQ(s.getSymbolByIndex(1), "btcusdt");

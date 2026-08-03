@@ -39,7 +39,7 @@ void Settings::load(const std::filesystem::path& path)
 	// TODO: "exhaustive configuration validation"
 	std::ifstream file(path);
 	if (!file.is_open())
-		throw std::runtime_error("settings.ini is not found");
+		throw std::runtime_error("settings.ini is not found. Put it in the start directory or specify as argument.");
 	bool streams_part_started = false;
 	for(;;)
 	{
@@ -64,8 +64,8 @@ void Settings::load(const std::filesystem::path& path)
 					std::from_chars(value.data(), value.data() + value.size(), flush_interval_ms);
 				else if (name == "safety_gap_ms")
 					std::from_chars(value.data(), value.data() + value.size(), safety_gap_ms);
-				else if (name == "verbose")
-					verbose = value == "true" || value == "TRUE";
+				else if (name == "verbose_level")
+					std::from_chars(value.data(), value.data() + value.size(), verbose_level);
 				else if (name == "output_file")
 					output_file = value;
 				else if (name == "streams")
@@ -114,8 +114,11 @@ void Settings::useUpperNames()
 	}
 }
 
-int64_t Settings::getEpochTime()
+int64_t Settings::getWallTime() const
 {
+	if (test_time)
+		return test_time;
 	using namespace std::chrono;
-	return duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();
+	return duration_cast<milliseconds>(steady_clock::now().time_since_epoch()).count();
 }
+

@@ -10,6 +10,7 @@
 #include <memory>
 #include <fstream>
 #include <gtest/gtest_prod.h>
+#include <mutex>
 
 class  Settings;
 
@@ -42,7 +43,7 @@ public:
 		void dump(std::ofstream& file, const Settings &settings) const;
 	};
 
-	// windows in the time order
+	// windows in the time order (older first)
 	// continuous sequence covers whole range [min_valid_timestamp, max_valid_timestamp[
 	std::deque<Window> queue;
 	
@@ -50,14 +51,22 @@ public:
 	int64_t min_valid_timestamp = 0;
 	int64_t max_valid_timestamp = 0;
 
+	// statistics for flush strategy
+	int64_t max_server_time_of_trade = 0;
+	int64_t last_wall_time_of_trade = 0;
+	int64_t last_wall_time_of_flush = 0;
+
 	// counter of invalid trades or malformed JSON-s
 	int invalid_trades_counter = 0;
 
 	// main file for dump
 	std::ofstream file;
 
-	// append specified window
-	void appendWindow(int64_t window_start_ms, const Settings& settings);
+	// mutex for queues changes
+	std::mutex mutex_for_queues;
+
+	// append window-s until window covered specified time
+	void appendWindowsCoveredTimestamp(int64_t timestamp, const Settings& settings);
 
 public:
 
@@ -66,14 +75,16 @@ public:
 	
 	// add one trade
 	// increment invalid_trades_counter if something wrong
+	// [!] multi-threading: addTrade is mutex-protected for case if flush/finalFlush called from different thread
 	void addTrade(const std::string_view &symbol, int64_t price, int64_t quantity, int64_t timestamp, const Settings &settings);
 
-	// flush (and ignore further) windows with max time < now
-	// allocate windows for predicted time in the future
-	void moveInTime(int64_t now, const Settings& settings);
+	// for normal case
+	// [!] multi-threading: addTrade is mutex-protected for case if flush/finalFlush called from different thread
+	// [!] but do not try to call several flush/finalFlush from parallel threads
+	void flush(const Settings& settings);
 
 	// for ^C finish
-	void flushAll(const Settings& settings);
+	void finalFlush(const Settings& settings);
 
 	// add error count
 	void incrementErrors() { ++invalid_trades_counter; }

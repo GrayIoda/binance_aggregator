@@ -6,19 +6,19 @@
 #include <filesystem>
 #include <csignal>
 #include <string_view>
+#include <atomic>
 #include "settings.h"
 #include "aggregator.h"
 #include "jsonparser.h"
 
 namespace fs = std::filesystem;
 
-// Linux-specific signal handling
-static void setup_signal_mask(sigset_t& sigset) 
+// signal atomic
+static std::atomic<bool> can_continue_flag { true };
+
+void signal_handler(int sig) 
 {
-    sigemptyset(&sigset);
-    sigaddset(&sigset, SIGINT);  // Ctrl+C
-    sigaddset(&sigset, SIGTERM); // polite kill
-    pthread_sigmask(SIG_BLOCK, &sigset, nullptr);
+    can_continue_flag.store(false, std::memory_order_relaxed);
 }
 
 int main(int argc, char **argv) 
@@ -45,11 +45,6 @@ int main(int argc, char **argv)
         Settings settings;
         settings.load(config_path);
 
-        Aggregator aggr(settings);
-        // time of last dumping
-        int64_t dump_time = Settings::getEpochTime();
-        aggr.moveInTime(dump_time, settings);
-        
         ix::WebSocket ws;
 
         // init TLS
@@ -58,9 +53,14 @@ int main(int argc, char **argv)
         ws.setTLSOptions(tlsOptions);
 
         ws.setUrl(settings.getURLForBinance());
+        ws.setPingInterval(20); // avoid close socket as not active
+        ws.setHandshakeTimeout(10); // avoid too long connection
+        // ws.enableAutomaticReconnection(); // task do not want this
 
         // to search streams by upper case
         settings.useUpperNames();
+
+        Aggregator aggr(settings);
 
         // IXWebSocket standart callback behaviour
         ws.setOnMessageCallback(
@@ -75,22 +75,12 @@ int main(int argc, char **argv)
                 case ix::WebSocketMessageType::Message:
                     try
                     {
-                        // need dump?
-                        int64_t cur_time = Settings::getEpochTime();
-                        if (cur_time >= dump_time + settings.flush_interval_ms)
-                        {
-                            // TODO: here should use server time (timestamp from trade) 
-                            // if is it not too far from wall time
-                            aggr.moveInTime(cur_time, settings);
-                            dump_time = cur_time;
-                        }
-
                         auto [symbol, price, quantity, timestamp] = parse_binanse_json(msg->str, settings);
                         aggr.addTrade(symbol, price, quantity, timestamp, settings);
                     }
                     catch (const std::exception &ex)
                     {
-                        if (settings.verbose)
+                        if (settings.verbose_level >= 1)
                             spdlog::error("Invalid JSON: {}", ex.what());
                         aggr.incrementErrors();
                     }
@@ -114,19 +104,22 @@ int main(int argc, char **argv)
 
         spdlog::info("Try to connect to Binance...");
 
-        sigset_t sigset;
-        setup_signal_mask(sigset);
+        std::signal(SIGINT, signal_handler);
+        std::signal(SIGTERM, signal_handler);
 
         ws.start();
 
         // wait for ^C or kill
-        int sig = 0;
-        sigwait(&sigset, &sig);
+        while (can_continue_flag.load(std::memory_order_relaxed))
+        {
+            aggr.flush(settings);
+            std::this_thread::sleep_for(std::chrono::milliseconds(50));
+        }
 
         ws.stop();
 
         // graceful shutdown
-        aggr.flushAll(settings);
+        aggr.finalFlush(settings);
     }
     catch (std::exception& ex)
     {
