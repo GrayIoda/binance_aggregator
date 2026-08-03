@@ -1,0 +1,6 @@
+#!/bin/bash
+rm -rf build out .vs
+conan install . --build=missing -s build_type=Release -c tools.cmake.cmaketoolchain:user_presets=""
+cp CMakePresets.Release.json CMakeUserPresets.json
+cp settings.ini build/Release/settings.ini
+cp fixed_settings_for_test.ini build/Release/fixed_settings_for_test.ini

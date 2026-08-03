@@ -1,2 +1,0 @@
-docker exec -it wsl_docker bash
-

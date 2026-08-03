@@ -1,0 +1,6 @@
+#!/bin/bash
+rm -rf build out .vs
+conan install . --build=missing -s build_type=Debug -c tools.cmake.cmaketoolchain:user_presets=""
+cp CMakePresets.Debug.json CMakeUserPresets.json
+cp settings.ini build/Debug/settings.ini
+cp fixed_settings_for_test.ini build/Debug/fixed_settings_for_test.ini

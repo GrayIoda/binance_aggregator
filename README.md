@@ -31,13 +31,13 @@ conan install . --build=missing -s build_type=Debug
 conan install . --build=missing -s build_type=Release
   (this must download and build all external libraries in build/Debug and build/Release folders)
 - Run cmake configuration:
-cmake --preset conan-release
- or
 cmake --preset conan-debug
-- Run build:
-cmake --build build/Release
  or
+cmake --preset conan-release
+- Run build:
 cmake --build build/Debug
+ or
+cmake --build build/Release
 - Run application (from project folder)
 build/Release/binance_aggregator
  or
@@ -49,9 +49,9 @@ cat aggregator.log
 - Or look at the larger sample log:
 cat aggregator_log_sample.txt
 - Run tests:
-build/Release/unit_tests
- or
 build/Debug/unit_tests
+ or
+build/Release/unit_tests
 
 ## Build for Visual Studio Community 2022 and WSL2
 
@@ -65,7 +65,10 @@ conan --version
   (check version is 2)
 conan profile detect
   (check conan found compiler.cppstd=gnu17 or later)
-- Place project files on Windows disk like:
+- Download project files to Windows disk like:
+cd /mnt/c/
+mkdir binance_aggregator
+cd binance_aggregator
   C:\linux\binance_aggregator
 It will be visible in the Linux here:
   /mnt/c/linux/binance_aggregator

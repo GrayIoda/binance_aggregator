@@ -1,9 +1,14 @@
 services:
-  cpp_dev:
+  binance_aggregator:
     build: .
-    container_name: wsl_docker
-    ports:
-      - "2222:22"
+    
+    # image: ghcr.io/GrayIoda/binance_aggregator_env:latest
+
+    container_name: binance_aggregator_env
+    stdin_open: true
+    tty: true
+    
     volumes:
-      - .:/workspace
-    working_dir: /workspace
+      - .:/app
+      - /app/build
+    working_dir: /app

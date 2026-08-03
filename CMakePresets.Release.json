@@ -1,0 +1,22 @@
+{
+    "version": 4,
+    "vendor": {
+        "conan": {}
+    },
+    "include": [
+        "build/Release/generators/CMakePresets.json"
+    ],
+    "configurePresets": [
+        {
+            "name": "conan-vs-release",
+            "displayName": "Visual Studio Release",
+            "inherits": "conan-release",
+            "vendor": {
+                "microsoft.com/VisualStudioRemoteSettings/CMake/1.0": {
+                    "forceWSL1Toolset": true,
+                    "copySources": false
+                }
+            }
+        }
+    ]
+}
