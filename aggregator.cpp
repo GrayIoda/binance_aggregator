@@ -70,7 +70,7 @@ void Aggregator::Window::dump(std::ofstream& file, const Settings& settings) con
 			file << "\n";
 		}
 	}
-	if (settings.verbose)
+	if (settings.verbose_level >= 1)
 		spdlog::info("Flush window: {}..{}", window_start_ms, window_start_ms + settings.window_ms);
 }
 
@@ -79,109 +79,176 @@ Aggregator::Aggregator(const Settings& settings)
 	file.open(settings.output_file, std::ios::app);
 	if (!file.is_open())
 		throw std::runtime_error("Cannot create aggregator.log");
+	last_wall_time_of_flush = settings.getWallTime();
 	// TODO: "disk-full handling"
 }
 
-void Aggregator::appendWindow(int64_t window_start_ms, const Settings& settings)
+void Aggregator::appendWindowsCoveredTimestamp(int64_t timestamp, const Settings& settings)
 {
-	queue.push_back(Window());
-	auto& window = queue.back();
-	window.streams = std::make_unique<Streams[]>(settings.streams_count);
-	window.window_start_ms = window_start_ms;
-	if (settings.verbose)
-		spdlog::info("Append window: {}..{}", window_start_ms, window_start_ms + settings.window_ms);
+	if (settings.verbose_level >= 1)
+		spdlog::info("Adjust queue to cover time: {}", timestamp);
+
+	int64_t window_ms = settings.window_ms;
+	// frames to create
+	int64_t frames_start = (timestamp / window_ms) * window_ms;
+	int64_t frames_stop = frames_start + window_ms;
+
+	// for case if current time is too close to boundary, 
+	// move it a bit to past if this is allowed with safety_gap_ms > 0
+	if (timestamp - frames_start < settings.safety_gap_ms)
+		frames_start -= window_ms;
+
+	// adjust according current queue content
+	if (queue.empty())
+	{
+		min_valid_timestamp = frames_start;
+		max_valid_timestamp = frames_stop;
+	}
+	else
+	{
+		frames_start = max_valid_timestamp;
+		if (frames_stop > max_valid_timestamp)
+			max_valid_timestamp = frames_stop;
+	}
+
+	if (settings.verbose_level >= 1 && timestamp - min_valid_timestamp < 100)
+		spdlog::warn("Windows start border is very close to current time");
+
+	// place new
+	for (int64_t window_start_ms = frames_start; window_start_ms < frames_stop; )
+	{
+		queue.push_back(Window());
+		auto& window = queue.back();
+		window.streams = std::make_unique<Streams[]>(settings.streams_count);
+		window.window_start_ms = window_start_ms;
+		auto window_stop_ms = window_start_ms + window_ms;
+		if (settings.verbose_level >= 1)
+			spdlog::info("Append window: {}..{}", window_start_ms, window_stop_ms);
+		window_start_ms = window_stop_ms;
+	}
 }
 
 void Aggregator::addTrade(const std::string_view &symbol, int64_t price, int64_t quantity, int64_t timestamp, const Settings& settings)
 {
-	if (timestamp < min_valid_timestamp)
-	{
-		if (settings.verbose)
-			spdlog::warn("Trade from the past: {} Limits: {} .. {}", timestamp, min_valid_timestamp, max_valid_timestamp);
-		++invalid_trades_counter;
-		return;
-	}
-	if (timestamp >= max_valid_timestamp)
-	{
-		if (settings.verbose)
-			spdlog::warn("Trade from the future: {} Limits: {} .. {}", timestamp, min_valid_timestamp, max_valid_timestamp);
-		++invalid_trades_counter;
-		return;
-	}
 	int sym_index;
 	if (quantity <= 0
      || price <= 0
 	 || (sym_index = settings.getIndexFromSymbol(symbol)) < 0
 	   )
 	{
-		if (settings.verbose)
+		if (settings.verbose_level >= 1)
 			spdlog::warn("Invalid trade: s={} p={} q={} T={}", symbol, price, quantity, timestamp);
 		++invalid_trades_counter;
 		return;
 	}
+	if (settings.verbose_level >= 2)
+		spdlog::info("Add trade s={} p={} q={} T={} to stream {}",
+			symbol, price, quantity, timestamp, sym_index);
 
-	int64_t index = (timestamp - min_valid_timestamp) / settings.window_ms;
-	if (settings.verbose)
-		spdlog::info("Add trade s={} p={} q={} T={} to window {}..{} stream {}", 
-			symbol, price, quantity, timestamp, 
-			queue[index].window_start_ms, queue[index].window_start_ms + settings.window_ms, sym_index);
-	queue[index].streams[sym_index].addTrade(price, quantity);
+	bool trade_in_the_past = false; // save here to avoid mutex-locked access to invalid_trades_counter
+
+	{
+		std::lock_guard<std::mutex> lock(mutex_for_queues);
+		last_wall_time_of_trade = settings.getWallTime();
+		max_server_time_of_trade = std::max(max_server_time_of_trade, timestamp);
+
+		if (timestamp < min_valid_timestamp)
+			trade_in_the_past = true;
+		else
+		{
+			if (timestamp >= max_valid_timestamp)
+				appendWindowsCoveredTimestamp(timestamp, settings);
+
+			int64_t index = (timestamp - min_valid_timestamp) / settings.window_ms;
+			queue[index].streams[sym_index].addTrade(price, quantity);
+		}
+	}
+
+	if (trade_in_the_past)
+	{
+		if (settings.verbose_level >= 1)
+			spdlog::warn("Trade from past: {}", timestamp);
+		++invalid_trades_counter;
+	}
 }
 
-void Aggregator::flushAll(const Settings& settings)
+void Aggregator::flush(const Settings& settings)
 {
+	// time to flush?
+	// no guards because last_wall_time_of_flush is for main thread only
+	int64_t wall_time = settings.getWallTime();
+	if (last_wall_time_of_flush + settings.flush_interval_ms > wall_time)
+		return;
+
+	last_wall_time_of_flush = wall_time;
+
+	std::deque<Window> flush_queue;
+
+	auto window_ms = settings.window_ms;
+
+	// quick move windows from work queue to flush queue and release mutex
+	{
+		std::lock_guard<std::mutex> lock(mutex_for_queues);
+		// long pause on the stock exchange? flush anything!
+		if (wall_time - last_wall_time_of_trade > 2 * settings.flush_interval_ms)
+		{
+			if (flush_queue.empty())
+				flush_queue.swap(queue);
+			else
+			{
+				// TODO: std::make_move_iterator?
+				while (!queue.empty())
+				{
+					flush_queue.push_back(std::move(queue.front()));
+					queue.pop_front();
+				}
+			}
+		}
+		else
+		{
+			// windows before max_server_time_of_trade are "in the past"
+			// also may add some safety_gap_ms if it is allowed
+			// flush windows until window with max_server_time_of_trade
+			int64_t critical_time = max_server_time_of_trade - settings.safety_gap_ms;
+			while (!queue.empty())
+			{
+				auto& window = queue.front();
+				if (window.window_start_ms + window_ms > critical_time)
+					break;
+				flush_queue.push_back(std::move(window));
+				queue.pop_front();
+			}
+		}
+		if (queue.empty())
+		{
+			max_server_time_of_trade = 0;
+			min_valid_timestamp = 0;
+			max_valid_timestamp = 0;
+		}
+		else
+		{
+			min_valid_timestamp = queue.front().window_start_ms;
+			max_valid_timestamp = queue.back().window_start_ms + window_ms;
+		}
+	}
+	
+	// write to disk
+	while (!flush_queue.empty())
+	{
+		flush_queue.front().dump(file, settings);
+		flush_queue.pop_front();
+	}
+	file.flush();
+}
+
+void Aggregator::finalFlush(const Settings& settings)
+{
+	std::lock_guard<std::mutex> lock(mutex_for_queues); // not necessary, just for case
 	while (!queue.empty())
 	{
 		queue.front().dump(file, settings);
 		queue.pop_front();
 	}
 	file.flush();
-}
-
-void Aggregator::moveInTime(int64_t now, const Settings& settings)
-{
-	int64_t window_ms = settings.window_ms;
-	int64_t next_now = now + settings.flush_interval_ms;
-	
-	min_valid_timestamp = (now / window_ms) * window_ms;
-	// +2* for case if end of time range is to near to predicted next flushing time
-	max_valid_timestamp = (next_now / window_ms) * window_ms + 2 * window_ms;
-
-	// for case if current time is too close to boundary, 
-	// move it a bit to past if this is allowed with safety_gap_ms > 0
-	// by default no safety gap because of requirements
-	while (now - min_valid_timestamp < settings.safety_gap_ms)
-		min_valid_timestamp -= window_ms;
-
-	if (settings.verbose)
-		spdlog::info("Set time range: {} .. {} for specified: {} .. {}", min_valid_timestamp, max_valid_timestamp, now, next_now);
-
-	if (settings.verbose && now - min_valid_timestamp < 100)
-		spdlog::warn("Window border is very close to current time");
-
-	// dump and remove too old
-	while(!queue.empty())
-	{
-		auto& window = queue.front();
-		if (window.window_start_ms >= min_valid_timestamp)
-			break;
-		window.dump(file, settings);
-		queue.pop_front();
-	}
-
-	// place new
-	for (int64_t window_start_ms = queue.empty() ? min_valid_timestamp : queue.back().window_start_ms + window_ms; 
-		 window_start_ms < max_valid_timestamp ; window_start_ms += window_ms)
-	{
-		appendWindow(window_start_ms, settings);
-	}
-
-	// invalid trades
-	if (invalid_trades_counter)
-	{
-		char buffer[64];
-		spdlog::warn("Invalid trades: {} before {}", invalid_trades_counter, timeToISOString(Settings::getEpochTime(), buffer, sizeof(buffer)));
-		invalid_trades_counter = 0;
-	}
 }
 
