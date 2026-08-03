@@ -1,8 +1,8 @@
 # Requirements
 
-  Linux, GCC 15.2.0 gnu17 is used, sources for C++17 or later
-  Tested under Ubuntu 26.04 LTS for WSL Linux 6.18.33.2-microsoft-standard-WSL2
-  Tested under Ubuntu 24.04.4 LTS for Docker (shares the WSL2 host kernel)
+  Linux, GCC 15.2.0 gnu17 is used, sources for C++17 or later.  
+  Tested under Ubuntu 26.04 LTS for WSL Linux 6.18.33.2-microsoft-standard-WSL2.  
+  Tested under Ubuntu 24.04.4 LTS for Docker (shares the WSL2 host kernel).  
 
 # Build instructions
 
@@ -158,12 +158,12 @@ To use different config file specify it as single argument of binance_aggregator
 
 Possible keys (and default values):
 - According the task:
--- flush_interval_ms=5000
--- window_ms=1000
--- output_file=aggregator.log
+- flush_interval_ms=5000
+- window_ms=1000
+- output_file=aggregator.log
 - Additional for debug/experiments
--- verbose=false (if true turns on verbose logging)
--- safety_gap_ms=0 (if not 0 then add gap to avoid late packet problem)
+- verbose_level=0 (may be 0..2)
+- safety_gap_ms=0 (if not 0 then add gap to avoid late packet problem)
 
 ## Other files
 
